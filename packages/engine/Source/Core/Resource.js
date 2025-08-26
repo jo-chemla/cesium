@@ -409,6 +409,7 @@ Resource.prototype.toString = function () {
 Resource.prototype.parseUrl = function (url, merge, preserveQuery, baseUrl) {
   let uri = new Uri(url);
   const query = parseQueryString(uri.query());
+  console.log('parseUrl 1', url, uri, query)
 
   this._queryParameters = merge
     ? combineQueryParameters(query, this.queryParameters, preserveQuery)
@@ -423,6 +424,7 @@ Resource.prototype.parseUrl = function (url, merge, preserveQuery, baseUrl) {
   }
 
   this._url = uri.toString();
+  console.log('parseUrl 2', this._queryParameters, uri, this._url)
 };
 
 /**

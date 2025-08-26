@@ -9,14 +9,10 @@ import GoogleEarthEnterpriseMetadata from "../Core/GoogleEarthEnterpriseMetadata
 import loadImageFromTypedArray from "../Core/loadImageFromTypedArray.js";
 import CesiumMath from "../Core/Math.js";
 import Rectangle from "../Core/Rectangle.js";
-import Resource from "./Resource.js";
+// import Resource from "./Resource.js";
 import Request from "../Core/Request.js";
 import RuntimeError from "../Core/RuntimeError.js";
 import * as protobuf from "protobufjs/dist/minimal/protobuf.js";
-import TileProviderError from "../Core/TileProviderError.js";
-// import protobuf from "../ThirdParty/protobufjs.js";
-import JulianDate from "../Core/JulianDate.js";
-import TimeDynamicImagery from "./TimeDynamicImagery.js";
 
 /**
  * @private
