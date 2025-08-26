@@ -9,6 +9,7 @@ import GoogleEarthEnterpriseMetadata from "../Core/GoogleEarthEnterpriseMetadata
 import loadImageFromTypedArray from "../Core/loadImageFromTypedArray.js";
 import CesiumMath from "../Core/Math.js";
 import Rectangle from "../Core/Rectangle.js";
+import Resource from "./Resource.js";
 import Request from "../Core/Request.js";
 import RuntimeError from "../Core/RuntimeError.js";
 import * as protobuf from "protobufjs/dist/minimal/protobuf.js";
@@ -175,6 +176,7 @@ function encodeDateToHex (year, month, day) {
   encodedDate = (encodedDate << kBitsPerDay) | day;
   return encodedDate.toString(16); // hexString
 };
+GoogleEarthEnterpriseImageryProvider.encodeDateToHex = encodeDateToHex
 function decodeHexToDate (hexString) {
   // Convert hex string to integer
   let encodedDate = parseInt(hexString, 16);
@@ -185,7 +187,7 @@ function decodeHexToDate (hexString) {
   const year = encodedDate;
   return { year: year, month: month, day: day };
 };
-GoogleEarthEnterpriseImageryProvider.encodeDateToHex = encodeDateToHex
+GoogleEarthEnterpriseImageryProvider.decodeHexToDate = decodeHexToDate
 
 function encodeGeeDate(input) {
   // Parse optional geeDate (Date | string | {year, month, day}) into datetime 
@@ -209,6 +211,8 @@ function encodeGeeDate(input) {
   return encodeDateToHex (year, month, day)
 
 }
+GoogleEarthEnterpriseImageryProvider.encodeGeeDate = encodeGeeDate
+window.encodeDateToHex = encodeDateToHex
 
 Object.defineProperties(GoogleEarthEnterpriseImageryProvider.prototype, {
   /**
@@ -363,6 +367,25 @@ Object.defineProperties(GoogleEarthEnterpriseImageryProvider.prototype, {
       return false;
     },
   },
+
+  /**
+   * Gets a value indicating whether or not the images provided by this imagery provider
+   * include an alpha channel.  If this property is false, an alpha channel, if present, will
+   * be ignored.  If this property is true, any images without an alpha channel will be treated
+   * as if their alpha is 1.0 everywhere.  Setting this property to false reduces memory usage
+   * and texture upload time.
+   * @memberof GoogleEarthEnterpriseImageryProvider.prototype
+   * @type {string}
+   */
+  geeDate: {
+    get: function () {
+      return this._geeDateHex;
+    },
+    set: function (geeDateHex) {
+      this._geeDateHex = geeDateHex; 
+      console.log('setter geeDate', geeDateHex, this._geeDateHex)
+    },
+  },
 });
 
 /**
@@ -466,6 +489,7 @@ GoogleEarthEnterpriseImageryProvider.prototype.requestImage = function (
     y,
     level,
     request,
+    this._geeDateHex
   ).fetchArrayBuffer();
   if (!defined(promise)) {
     return undefined; // Throttled
@@ -475,6 +499,7 @@ GoogleEarthEnterpriseImageryProvider.prototype.requestImage = function (
     decodeGoogleEarthEnterpriseData(metadata.key, image);
     let a = new Uint8Array(image);
     let type;
+    console.log('buildImageResource promise then decodeGoogleEarthEnterpriseData metadata', metadata)
 
     const protoImagery = metadata.protoImagery;
     if (!defined(protoImagery) || !protoImagery) {
@@ -524,16 +549,34 @@ GoogleEarthEnterpriseImageryProvider.prototype.pickFeatures = function (
 //
 // Functions to handle imagery packets
 //
-function buildImageResource(imageryProvider, info, x, y, level, request) {
+
+function buildImageResource(imageryProvider, info, x, y, level, request, geeDateHex=undefined) {
   const quadKey = GoogleEarthEnterpriseMetadata.tileXYToQuadKey(x, y, level);
   console.log('buildImageResource info', info)
   let version = info.imageryVersion;
   version = defined(version) && version > 0 ? version : 1;
 
+  let url = `flatfile?f1-0${quadKey}-i.${version.toString()}`
+  if (geeDateHex) {
+    url = `flatfile?db=tm&f1-0${quadKey}-i.${version.toString()}-${geeDateHex}`
+  }
+
+  console.log('URL', url, geeDateHex)
+
+  // APPENDS TRAILING = like it's base64, is it really harmless? 
+  // return new Resource({ url, request })
   return imageryProvider._metadata.resource.getDerivedResource({
-    url: `flatfile?f1-0${quadKey}-i.${version.toString()}`,
-    request: request,
+    url, request, 
   });
+  // return imageryProvider._metadata.resource.getDerivedResource({
+  //   url, request, 
+  //   preserveQueryParameters: true, 
+  //   parseUrl: false, 
+  //   queryParameters: []
+  // });
+  // return imageryProvider._metadata.resource.getDerivedResource({
+  //   url, request,
+  // });
 }
 
 // Detects if a Uint8Array is a JPEG or PNG
