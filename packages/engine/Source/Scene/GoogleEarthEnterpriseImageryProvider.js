@@ -12,6 +12,10 @@ import Rectangle from "../Core/Rectangle.js";
 import Request from "../Core/Request.js";
 import RuntimeError from "../Core/RuntimeError.js";
 import * as protobuf from "protobufjs/dist/minimal/protobuf.js";
+import TileProviderError from "../Core/TileProviderError.js";
+// import protobuf from "../ThirdParty/protobufjs.js";
+import JulianDate from "../Core/JulianDate.js";
+import TimeDynamicImagery from "./TimeDynamicImagery.js";
 
 /**
  * @private
@@ -128,6 +132,82 @@ function GoogleEarthEnterpriseImageryProvider(options) {
   }
 
   this._errorEvent = new Event();
+
+
+
+  // // --- NEW: optional historical date ---
+  // this._geeDateHex = encodeGeeDate(options.geeDate); // undefined if not provided
+
+  // // --- NEW: optional timeline support (mirrors WMS/WMTS pattern) ---
+  // this._clock = options.clock;    // Cesium.Clock (optional)
+  // this._times = options.times;    // TimeIntervalCollection (optional)
+  // if (defined(this._clock) && defined(this._times)) {
+  //   const that = this;
+  //   this._timeDynamicImagery = new TimeDynamicImagery({
+  //     clock: this._clock,
+  //     times: this._times,
+  //     // For each active interval, update geeDate and delegate to normal request path.
+  //     requestImageFunction: function (x, y, level, request, interval/*, preload*/) {
+  //       // pick the interval's stop as the "effective" date (same as WMTS)
+  //       const stopDate = JulianDate.toDate(interval.stop);
+  //       that._geeDateHex = encodeGeeDate(stopDate);
+  //       return that._requestImageBase(x, y, level, request);
+  //     },
+  //     reloadFunction: function () {
+  //       // Tell the layer to refetch when the interval changes.
+  //       if (defined(that._reload)) {
+  //         that._reload(); // many providers expose a private reload hook; if not, imagery layer swap is the fallback
+  //       }
+  //     },
+  //   });
+  // }
+
+}
+
+
+// --- NEW: helper to encode a date into Google f6c hex ---
+const kBitsPerMonth = 4;
+const kBitsPerDay = 5;
+// encodeDateToHex parses year, month, day to a hex string representing hex-date in gee format
+function encodeDateToHex (year, month, day) {
+  let encodedDate = year;
+  encodedDate = (encodedDate << kBitsPerMonth) | month;
+  encodedDate = (encodedDate << kBitsPerDay) | day;
+  return encodedDate.toString(16); // hexString
+};
+function decodeHexToDate (hexString) {
+  // Convert hex string to integer
+  let encodedDate = parseInt(hexString, 16);
+  const day = encodedDate & 0x1F; // Extract the day (last 5 bits)
+  encodedDate >>= kBitsPerDay;
+  const month = encodedDate & 0x0F; // Extract the month (next 4 bits)
+  encodedDate >>= kBitsPerMonth;
+  const year = encodedDate;
+  return { year: year, month: month, day: day };
+};
+GoogleEarthEnterpriseImageryProvider.encodeDateToHex = encodeDateToHex
+
+function encodeGeeDate(input) {
+  // Parse optional geeDate (Date | string | {year, month, day}) into datetime 
+  if (!defined(input)) {return undefined;}
+  let dt;
+  if (input instanceof Date) {
+    dt = input
+  } else if (typeof input === "string") {
+    dt = new Date(input); 
+    if (isNaN(dt)) {return undefined;}
+  } else if (typeof input === "object" && defined(input.year)) {
+    dt = new Date(input.year, input.month, input.day);
+  } else {
+    return undefined;
+  }
+  
+  // Encode to hex GEE hex string
+  const year = dt.getFullYear(), 
+    month = dt.getMonth() + 1, 
+    day = dt.getDate();
+  return encodeDateToHex (year, month, day)
+
 }
 
 Object.defineProperties(GoogleEarthEnterpriseImageryProvider.prototype, {
@@ -357,6 +437,8 @@ GoogleEarthEnterpriseImageryProvider.prototype.requestImage = function (
 ) {
   const invalidImage = this._tileDiscardPolicy._image; // Empty image or undefined depending on discard policy
   const metadata = this._metadata;
+  console.log('requestImage', x, y, level, request)
+  console.log('metadata', metadata)
   const quadKey = GoogleEarthEnterpriseMetadata.tileXYToQuadKey(x, y, level);
   const info = metadata.getTileInformation(x, y, level);
   if (!defined(info)) {
@@ -401,6 +483,7 @@ GoogleEarthEnterpriseImageryProvider.prototype.requestImage = function (
 
     if (!defined(type) && (!defined(protoImagery) || protoImagery)) {
       const message = decodeEarthImageryPacket(a);
+      console.log('request image decodeEarthImageryPacket', message)
       type = message.imageType;
       a = message.imageData;
     }
@@ -443,6 +526,7 @@ GoogleEarthEnterpriseImageryProvider.prototype.pickFeatures = function (
 //
 function buildImageResource(imageryProvider, info, x, y, level, request) {
   const quadKey = GoogleEarthEnterpriseMetadata.tileXYToQuadKey(x, y, level);
+  console.log('buildImageResource info', info)
   let version = info.imageryVersion;
   version = defined(version) && version > 0 ? version : 1;
 

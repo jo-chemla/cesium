@@ -548,6 +548,8 @@ function requestDbRoot(that) {
       const dbRoot = dbrootParser.DbRootProto.decode(
         new Uint8Array(result.buffer),
       );
+      console.log('dbRoot', dbRoot)
+
       that.imageryPresent = dbRoot.imageryPresent ?? that.imageryPresent;
       that.protoImagery = dbRoot.protoImagery;
       that.terrainPresent = dbRoot.terrainPresent ?? that.terrainPresent;

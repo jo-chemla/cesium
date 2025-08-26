@@ -29,37 +29,93 @@
       window.startup = async function (Cesium) {
         "use strict";
         //Sandcastle_Begin
+        console.log('yo v2')
         const viewer = new Cesium.Viewer("cesiumContainer", {
           baseLayerPicker: false,
+          timeline: true, 
         });
 
-        try {
-          const geeMetadata = await Cesium.GoogleEarthEnterpriseMetadata.fromUrl(
+        // try {
+          // const geeMetadata = await Cesium.GoogleEarthEnterpriseMetadata.fromUrl(
+          //   // new Cesium.Resource({
+          //   //   url: "http://www.earthenterprise.org/3d",
+          //   //   // proxy: new Cesium.DefaultProxy("/proxy/"),
+          //   // }),
+          //   new Cesium.Resource({
+          //     url:  "https://kh.google.com"
+          //   }),
+          // );
+
+          
+          const geeMetadata = await Cesium.GoogleEarthEnterpriseMetadata(
             new Cesium.Resource({
-              url: "http://www.earthenterprise.org/3d",
-              proxy: new Cesium.DefaultProxy("/proxy/"),
+              url:  "https://kh.google.com"
             }),
           );
 
-          viewer.scene.terrainProvider =
-            Cesium.GoogleEarthEnterpriseTerrainProvider.fromMetadata(geeMetadata);
+          // viewer.scene.terrainProvider =
+          //   Cesium.GoogleEarthEnterpriseTerrainProvider.fromMetadata(geeMetadata);
 
-          const layers = viewer.scene.imageryLayers;
-          const blackMarble = new Cesium.ImageryLayer(
-            new Cesium.GoogleEarthEnterpriseImageryProvider({
+          const geeImageryProvider = new Cesium.GoogleEarthEnterpriseImageryProvider({
               metadata: geeMetadata,
-            }),
-          );
-          layers.add(blackMarble);
-        } catch (error) {
-          console.log(`Failed to create Google Earth providers from metadata. Confirm GEE service is correctly configured.
-          ${error}`);
-        }
+            })
+          const geeImageryLayer = new Cesium.ImageryLayer( geeImageryProvider );
+
+          const imageryLayers = viewer.scene.imageryLayers;
+          imageryLayers.add(geeImageryLayer);
+
+          
+          // // Manually add timeline sync functionnality, could be embedded in the provider directly
+          // viewer.clock.onTick.addEventListener((clock) => {
+          //   const date = Cesium.JulianDate.toDate(clock.currentTime);
+          //   const hex = Cesium.GoogleEarthEnterpriseImageryProvider.encodeDateToHex(
+          //     date.getFullYear(), date.getMonth() + 1, date.getDate()
+          //   );
+          //   // geeImageryProvider.geeDate = hex;
+          //   console.log('date', date, hex)
+          //   // if (hex !== currentHex) {
+          //   //   currentHex = hex;
+          //     const i = imageryLayers.indexOf(geeImageryLayer);
+          //     vier.imageryLayers.remove(geeImageryLayer, true);
+          //     geeImageryLayer = imageryLayers.addImageryProvider(
+          //       new Cesium.GoogleEarthEnterpriseImageryProvider({ metadata: geeMetadata, geeDate: hex }),
+          //       i
+          //     );
+          //   // }  
+          //   // imageryLayer._layer.reload(); // internal reload call to refresh tiles
+          // });
+
+        // } catch (error) {
+        //   console.log(`Failed to create Google Earth providers from metadata. Confirm GEE service is correctly configured.
+        //   ${error}`);
+        // }
 
         // Start off looking at San Francisco.
+        // viewer.camera.setView({
+        //   destination: Cesium.Rectangle.fromDegrees(-123.0, 36.0, -121.7, 39.0),
+        // }); 
+        // Start off looking at Nanterre.
         viewer.camera.setView({
-          destination: Cesium.Rectangle.fromDegrees(-123.0, 36.0, -121.7, 39.0),
-        }); //Sandcastle_End
+          destination: Cesium.Rectangle.fromDegrees(2.21005777, 48.90299514, 2.24150486, 48.88909253,),
+        });
+
+        
+        const startTime = Cesium.JulianDate.fromIso8601("2005-01-01T00:00:00Z")
+        const stopTime = Cesium.JulianDate.fromIso8601("2025-01-01T00:00:00Z")
+        viewer.timeline.zoomTo(startTime, stopTime)
+        // const clock = new Cesium.Clock({
+        //   startTime,
+        //   stopTime,
+        //   currentTime: stopTime,
+        //   clockRange: Cesium.ClockRange.LOOP_STOP,
+        //   clockStep: Cesium.ClockStep.SYSTEM_CLOCK_MULTIPLIER,
+        //   multiplier: 31557600, // seconds in a year
+        // });
+        // setTimeout(() => {
+        //   viewer.timeline = new Cesium.Timeline('cesium-viewer-animationContainer', clock)
+        // }, 5000)
+        
+        //Sandcastle_End
       };
       if (typeof Cesium !== "undefined") {
         window.startupCalled = true;
